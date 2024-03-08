@@ -1,29 +1,47 @@
+import express from "express";
+import * as path from "path";
 import * as http from "http";
-import express from "express"
 import {WebSocket, WebSocketServer} from "ws";
+import {parse} from "nodemon/lib/cli";
 
-const app = express()
+const __dirname = path.resolve();
 
-// pug 설정
+const app = express();
+
 app.set("view engine", "pug");
-app.set("views", __dirname + "/views");
-app.use("/public", express.static(__dirname + "/public"));
-// route 설정
-app.get("/", (_, res) => res.render("home"));
+app.set("views", __dirname + "/src/views");
+app.use("/public", express.static(__dirname + "/src/public"));
+app.get("/", (req, res) => res.render("home"));
 app.get("/*", (_, res) => res.redirect("/"));
 
-const handleListen = () => console.log(`http://localhost:3000`);
-const server = http.createServer(app); //server에서 ws를 만들 수 있게 되었다.
-const wss = new WebSocketServer({server});  //WebSocket 서버와 http 서버 모두 돌릴 수 있게 되었다.
+const handleListen = () => console.log('Listening on http://localhost:3000');
 
-// function handleConnection(socket){  // socket은 연결된 브라우
-//   console.log(socket)
-// }
+const server = http.createServer(app);
+const wss = new WebSocketServer({server});
+
+function onSocketClose() {
+  console.log("Disconnected from the Browser ❌");
+}
+
+const sockets = [];
 
 wss.on("connection", (socket) => {
+  sockets.push(socket);
+  socket["nickname"] = "Anon";
   console.log("Connected to Browser");
-  socket.on("close", () => console.log("Disconnected from the Browser"));
-  socket.send("hello");
+  socket.on("close", onSocketClose);
+  socket.on("message", (msg) => {
+    const message = JSON.parse(msg);
+    switch (message.type){
+      case "new_message":
+        sockets.forEach((aSocket) => aSocket.send(`${socket.nickname}: ${message.payload}`));
+        break
+      case "nickname":
+        socket["nickname"] = message.payload;
+        break
+    }
+  });
 });
+
 
 server.listen(3000, handleListen);
