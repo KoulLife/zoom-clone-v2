@@ -1,17 +1,43 @@
-// socket은 서버로의 연결을 의미함
-const socket = new WebSocket(`ws://${window.location.host}`)  //브라우저가 어디에 있는지
+const messageList = document.querySelector("ul");
+const nickForm = document.querySelector("#nick");
+const messageForm = document.querySelector("#message");
+const socket = new WebSocket(`ws://${window.location.host}`);
 
-// 서버와 연결이 되었을때
-socket.addEventListener("open", () => {
-  console.log("Connected to Server");
-});
+function makeMessage(type, payload){
+  const msg = {type, payload};
+  return JSON.stringify(msg);
+}
 
-// 서버에게 메세지를 받았을때
-socket.addEventListener("message", (message) => {
-  console.log("New message: ", message.data);
-});
-
-// 서버와 연결이 끊겼을때
-socket.addEventListener("close", () => {
+function handleOpen(){
   console.log("Disconnected from Server");
+}
+
+socket.addEventListener("open", handleOpen);
+socket.addEventListener("message", (message) => {
+  const li = document.createElement("li");
+  li.innerText = message.data;
+  messageList.append(li);
 });
+socket.addEventListener("close", () => {
+  console.log("Disconnected from Server ❌");
+});
+
+function handleSubmit(event){
+  event.preventDefault();
+  const input = messageForm.querySelector("input");
+  socket.send(makeMessage("new_message", input.value));
+  const li = document.createElement("li");
+  li.innerText = `You: ${input.value}`;
+  messageList.append(li);
+  input.value = "";
+}
+
+function handleNickSubmit(event){
+  event.preventDefault();
+  const input = nickForm.querySelector("input");
+  socket.send(makeMessage("nickname", input.value));
+  input.value = ""
+}
+
+messageForm.addEventListener("submit", handleSubmit);
+nickForm.addEventListener("submit", handleNickSubmit);
